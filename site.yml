@@ -1,0 +1,17 @@
+---
+- hosts: mongodb
+  become: true
+  roles:
+    - role: roles/mongo_replicaset
+      vars:
+        mongo_major: "7.0"
+        mongo_version: ""
+        mongo_replset_name: "rs-production"
+        mongo_dbpath: "/data/mongo"
+        mongo_bind_ip: ["0.0.0.0"]
+        mongo_admin_user: "admin"
+        mongo_admin_pass: !vault |
+          <VAULTED_STRING>
+        mongo_monitor_user: "monitor"
+        mongo_monitor_pass: !vault |
+          <VAULTED_STRING>

@@ -1,0 +1,10 @@
+---
+- hosts: mongodb
+  become: true
+  serial: 1
+  vars:
+    mongo_rolling_upgrade: true
+    mongo_target_version: "7.0.12"   # vide => latest
+    mongo_set_fcv_after_upgrade: false
+  roles:
+    - role: roles/mongo_replicaset
