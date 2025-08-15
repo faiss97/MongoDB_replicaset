@@ -1,0 +1,36 @@
+---
+- name: Configure MongoDB repo (Debian/Ubuntu)
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Add MongoDB GPG key
+      ansible.builtin.get_url:
+        url: "{{ mongo_apt_key_url }}"
+        dest: /etc/apt/keyrings/mongodb-org-archive-keyring.asc
+        mode: '0644'
+    - name: Convert ASCII key to keyring
+      ansible.builtin.command: "gpg --dearmor -o /etc/apt/keyrings/mongodb-org-archive-keyring.gpg /etc/apt/keyrings/mongodb-org-archive-keyring.asc"
+      args:
+        creates: /etc/apt/keyrings/mongodb-org-archive-keyring.gpg
+    - name: Add APT repo
+      ansible.builtin.apt_repository:
+        repo: "{{ mongo_apt_repo_line }}"
+        state: present
+        filename: mongodb-org-{{ mongo_major }}
+    - name: apt update
+      ansible.builtin.apt:
+        update_cache: yes
+
+- name: Configure MongoDB repo (RHEL-like)
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Add YUM repo
+      ansible.builtin.yum_repository:
+        name: "{{ mongo_yum_repo.name }}"
+        description: "{{ mongo_yum_repo.description }}"
+        baseurl: "{{ mongo_yum_repo.baseurl }}"
+        gpgcheck: true
+        enabled: true
+        gpgkey: "{{ mongo_yum_repo.gpgkey }}"
+    - name: yum makecache
+      ansible.builtin.yum:
+        update_cache: yes

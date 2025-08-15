@@ -1,0 +1,17 @@
+---
+driver:
+  name: docker
+platforms:
+  - name: debian12-mongo-1
+    image: debian:12
+    privileged: true
+  - name: ubuntu22-mongo-2
+    image: ubuntu:22.04
+    privileged: true
+  - name: rocky9-mongo-3
+    image: rockylinux:9
+    privileged: true
+provisioner:
+  name: ansible
+verifier:
+  name: ansible

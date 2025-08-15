@@ -1,0 +1,36 @@
+# Fichier géré par Ansible
+storage:
+  dbPath: {{ mongo_dbpath }}
+  journal:
+    enabled: true
+
+systemLog:
+  destination: file
+  logAppend: true
+  path: /var/log/mongodb/mongod.log
+
+net:
+  port: {{ mongo_port }}
+  bindIp: {{ mongo_bind_ip | join(',') }}
+{% if mongo_enable_tls %}
+  tls:
+    mode: requireTLS
+    certificateKeyFile: {{ mongo_tls_key_file }}
+    certificateFile: {{ mongo_tls_cert_file }}
+{% endif %}
+
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+
+replication:
+  replSetName: {{ mongo_replset_name }}
+
+security:
+{% if mongo_enable_auth %}
+  authorization: enabled
+  keyFile: {{ mongo_keyfile_path }}
+  clusterAuthMode: keyFile
+  authenticationMechanisms: {{ mongo_auth_mechanisms | to_json }}
+{% else %}
+  authorization: disabled
+{% endif %}

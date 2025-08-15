@@ -1,0 +1,109 @@
+---
+# ⚙️ Rolling upgrade d'un nœud, à exécuter avec `serial: 1` dans le playbook
+# Variables requises :
+# - mongo_target_version: "7.0.12" (ou vide pour latest)
+
+- name: Detect if this node is PRIMARY
+  community.mongodb.mongodb_shell:
+    login_host: 127.0.0.1
+    login_port: "{{ mongo_port }}"
+    db: admin
+    eval: "printjson(db.hello().isWritablePrimary)"
+  register: hello_is_primary
+  failed_when: false
+  changed_when: false
+
+- name: Step down if PRIMARY (handover)
+  when: hello_is_primary.stdout is search('true')
+  community.mongodb.mongodb_shell:
+    login_host: 127.0.0.1
+    login_port: "{{ mongo_port }}"
+    db: admin
+    eval: "try { rs.stepDown(60) } catch(e) { print(e) }"
+  failed_when: false
+
+- name: Wait until node is no longer PRIMARY
+  when: hello_is_primary.stdout is search('true')
+  ansible.builtin.shell: |
+    mongosh --quiet --eval "printjson(!db.hello().isWritablePrimary)"
+  register: not_primary
+  retries: 30
+  delay: 2
+  until: not_primary.stdout is search('true')
+  changed_when: false
+
+- name: Stop mongod before package upgrade
+  ansible.builtin.service:
+    name: mongod
+    state: stopped
+
+- name: Upgrade to target version (Debian exact)
+  when: ansible_os_family == 'Debian' and (mongo_target_version | length > 0)
+  ansible.builtin.apt:
+    name:
+      - "mongodb-org={{ mongo_target_version }}*"
+      - "mongodb-org-database={{ mongo_target_version }}*"
+      - "mongodb-org-server={{ mongo_target_version }}*"
+      - "mongodb-mongosh={{ mongo_target_version }}*"
+      - "mongodb-org-mongos={{ mongo_target_version }}*"
+      - "mongodb-org-tools={{ mongo_target_version }}*"
+    state: present
+    update_cache: yes
+
+- name: Upgrade to latest from repo (Debian)
+  when: ansible_os_family == 'Debian' and (mongo_target_version | length == 0)
+  ansible.builtin.apt:
+    name: mongodb-org
+    state: latest
+    update_cache: yes
+
+- name: Upgrade to target version (RHEL exact)
+  when: ansible_os_family == 'RedHat' and (mongo_target_version | length > 0)
+  ansible.builtin.yum:
+    name:
+      - "mongodb-org-{{ mongo_target_version }}*"
+      - "mongodb-org-database-{{ mongo_target_version }}*"
+      - "mongodb-org-server-{{ mongo_target_version }}*"
+      - "mongodb-mongosh-{{ mongo_target_version }}*"
+      - "mongodb-org-mongos-{{ mongo_target_version }}*"
+      - "mongodb-org-tools-{{ mongo_target_version }}*"
+    state: present
+
+- name: Upgrade to latest from repo (RHEL)
+  when: ansible_os_family == 'RedHat' and (mongo_target_version | length == 0)
+  ansible.builtin.yum:
+    name: mongodb-org
+    state: latest
+
+- name: Start mongod after upgrade
+  ansible.builtin.service:
+    name: mongod
+    state: started
+    enabled: true
+
+- name: Wait for mongod port
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ mongo_port }}"
+    delay: 2
+    timeout: 120
+
+- name: Wait until node is SECONDARY or PRIMARY
+  ansible.builtin.shell: |
+    mongosh --quiet --eval "printjson(db.hello().secondary || db.hello().isWritablePrimary)"
+  register: became_healthy
+  retries: 60
+  delay: 2
+  until: became_healthy.stdout is search('true')
+  changed_when: false
+
+# Facultatif: bump de la FCV après un upgrade majeur (doit être exécuté sur PRIMARY)
+- name: Optionally set FeatureCompatibilityVersion (may fail on non-primary)
+  when: mongo_set_fcv_after_upgrade | bool
+  community.mongodb.mongodb_shell:
+    login_host: 127.0.0.1
+    login_port: "{{ mongo_port }}"
+    db: admin
+    eval: "try { db.adminCommand({ setFeatureCompatibilityVersion: '{{ mongo_major }}' }) } catch(e) { print(e) }"
+  failed_when: false
+  changed_when: false

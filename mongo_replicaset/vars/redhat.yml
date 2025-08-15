@@ -1,0 +1,10 @@
+---
+mongo_yum_repo:
+  name: "mongodb-org-{{ mongo_major }}"
+  description: "MongoDB Repository {{ mongo_major }}"
+  baseurl: "https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/{{ mongo_major }}/x86_64/"
+  gpgcheck: yes
+  enabled: yes
+  gpgkey: "https://pgp.mongodb.com/server-{{ mongo_major }}.asc"
+mongo_packages:
+  - mongodb-org

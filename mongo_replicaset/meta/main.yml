@@ -1,0 +1,20 @@
+---
+dependencies: []
+
+galaxy_info:
+  role_name: mongo_replicaset
+  author: your_name
+  description: Installer et configurer MongoDB en replica set (N nœuds), multi-OS.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions: ["bookworm"]
+    - name: Ubuntu
+      versions: ["jammy"]
+    - name: EL
+      versions: ["9"]
+  galaxy_tags:
+    - mongodb
+    - replicaset
+    - database

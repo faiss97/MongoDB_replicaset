@@ -1,0 +1,10 @@
+---
+- hosts: all
+  become: true
+  vars:
+    mongo_admin_pass: "Passw0rd!"
+    mongo_monitor_pass: "Mon1tor!"
+    mongo_replset_name: "rs-molecule"
+    mongo_dbpath: "/data/mongo"
+  roles:
+    - role: mongo_replicaset

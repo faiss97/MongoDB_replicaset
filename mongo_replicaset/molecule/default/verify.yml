@@ -1,0 +1,10 @@
+---
+- hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check mongod service
+      ansible.builtin.shell: |
+        systemctl is-active mongod
+      register: svc
+      changed_when: false
+      failed_when: svc.stdout.strip() != 'active'

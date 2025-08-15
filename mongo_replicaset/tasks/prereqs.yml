@@ -1,0 +1,29 @@
+---
+- name: Ensure keyrings dir (Debian/Ubuntu)
+  when: ansible_os_family == 'Debian'
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Install prerequisites packages
+  ansible.builtin.package:
+    name: ["gnupg", "curl", "python3-pip", "jq"]
+    state: present
+
+- name: Install python MongoDB collection deps on targets
+  ansible.builtin.pip:
+    name:
+      - pymongo
+      - dnspython
+    state: present
+
+- name: Set nofile limit for mongod
+  ansible.builtin.copy:
+    dest: /etc/security/limits.d/mongod.conf
+    content: |
+      mongod soft nofile {{ mongo_nofile_limit }}
+      mongod hard nofile {{ mongo_nofile_limit }}
+    owner: root
+    group: root
+    mode: '0644'

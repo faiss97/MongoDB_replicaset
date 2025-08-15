@@ -1,0 +1,30 @@
+---
+- name: Include OS vars
+  ansible.builtin.include_vars: "{{ 'debian.yml' if ansible_os_family == 'Debian' else 'redhat.yml' }}"
+
+- name: Pré-requis
+  ansible.builtin.import_tasks: prereqs.yml
+
+- name: Dépôts MongoDB
+  ansible.builtin.import_tasks: repo.yml
+
+- name: Installation paquets
+  ansible.builtin.import_tasks: install.yml
+
+- name: Configuration mongod
+  ansible.builtin.import_tasks: config.yml
+
+- name: Firewall
+  when: manage_firewall | bool
+  ansible.builtin.import_tasks: firewall.yml
+
+- name: Rolling upgrade (optionnel, sans coupure)
+  when: mongo_rolling_upgrade | bool
+  ansible.builtin.import_tasks: upgrade.yml
+
+- name: Initialisation / Reconfig Replica Set
+  ansible.builtin.import_tasks: replset.yml
+
+- name: Création des utilisateurs
+  when: mongo_enable_auth | bool
+  ansible.builtin.import_tasks: users.yml

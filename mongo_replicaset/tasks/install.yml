@@ -1,0 +1,38 @@
+---
+- name: Install MongoDB packages
+  ansible.builtin.package:
+    name: "{{ mongo_packages }}"
+    state: present
+
+- name: Pin exact version (if specified)
+  when: mongo_version | length > 0
+  block:
+    - name: Install exact version (Debian/Ubuntu)
+      when: ansible_os_family == 'Debian'
+      ansible.builtin.apt:
+        name:
+          - "mongodb-org={{ mongo_version }}*"
+          - "mongodb-org-database={{ mongo_version }}*"
+          - "mongodb-org-server={{ mongo_version }}*"
+          - "mongodb-mongosh={{ mongo_version }}*"
+          - "mongodb-org-mongos={{ mongo_version }}*"
+          - "mongodb-org-tools={{ mongo_version }}*"
+        state: present
+        update_cache: yes
+    - name: Install exact version (RHEL-like)
+      when: ansible_os_family == 'RedHat'
+      ansible.builtin.yum:
+        name:
+          - "mongodb-org-{{ mongo_version }}*"
+          - "mongodb-org-database-{{ mongo_version }}*"
+          - "mongodb-org-server-{{ mongo_version }}*"
+          - "mongodb-mongosh-{{ mongo_version }}*"
+          - "mongodb-org-mongos-{{ mongo_version }}*"
+          - "mongodb-org-tools-{{ mongo_version }}*"
+        state: present
+
+- name: Enable and start mongod
+  ansible.builtin.service:
+    name: mongod
+    enabled: true
+    state: started

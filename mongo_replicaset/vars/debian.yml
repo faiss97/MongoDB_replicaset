@@ -1,0 +1,5 @@
+---
+mongo_apt_repo_line: "deb [ signed-by=/etc/apt/keyrings/mongodb-org-archive-keyring.gpg ] https://repo.mongodb.org/apt/{{ ansible_distribution | lower }} {{ ansible_distribution_release }}/mongodb-org/{{ mongo_major }} multiverse main"
+mongo_apt_key_url: "https://pgp.mongodb.com/server-{{ mongo_major }}.asc"
+mongo_packages:
+  - mongodb-org

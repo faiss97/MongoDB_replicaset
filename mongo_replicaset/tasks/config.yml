@@ -1,0 +1,51 @@
+---
+- name: Ensure dbpath exists
+  ansible.builtin.file:
+    path: "{{ mongo_dbpath }}"
+    state: directory
+    owner: mongodb
+    group: mongodb
+    mode: '0750'
+
+# Génération/Distribution du keyFile (si auth active)
+- name: Generate keyfile content (controller) if not provided
+  when: mongo_enable_auth | bool and (mongo_keyfile_content is not defined or mongo_keyfile_content | length == 0)
+  run_once: true
+  delegate_to: localhost
+  vars:
+    rnd_len: 756
+  ansible.builtin.set_fact:
+    mongo_keyfile_content_generated: "{{ lookup('community.general.random_string', length=rnd_len, base64=True) }}"
+
+- name: Set resolved keyfile content fact
+  when: mongo_enable_auth | bool
+  ansible.builtin.set_fact:
+    mongo_keyfile_resolved: "{{ (mongo_keyfile_content is defined and mongo_keyfile_content | length > 0) | ternary(mongo_keyfile_content, hostvars['localhost'].mongo_keyfile_content_generated) }}"
+
+- name: Deploy keyfile to host
+  when: mongo_enable_auth | bool
+  ansible.builtin.copy:
+    dest: "{{ mongo_keyfile_path }}"
+    content: "{{ mongo_keyfile_resolved }}\n"
+    owner: mongodb
+    group: mongodb
+    mode: '0400'
+
+- name: Template mongod.conf
+  ansible.builtin.template:
+    src: mongod.conf.j2
+    dest: /etc/mongod.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart mongod
+
+- name: Restart mongod (if needed)
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for mongod to start
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ mongo_port }}"
+    delay: 2
+    timeout: 60

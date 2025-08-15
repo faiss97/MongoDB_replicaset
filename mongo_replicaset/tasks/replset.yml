@@ -1,0 +1,87 @@
+---
+# Détermine la liste des membres (host:port) depuis l’inventaire
+- name: Build members list
+  ansible.builtin.set_fact:
+    mongo_members: >-
+      {{ groups[mongo_replica_inventory_group] | map('extract', hostvars, ['inventory_hostname']) | list | map('regex_replace', '^(.*)$', '\1:{{ mongo_port }}') | list }}
+
+- name: Identify primary host (first in group)
+  ansible.builtin.set_fact:
+    mongo_primary_host: "{{ groups[mongo_replica_inventory_group][0] }}"
+
+- name: Initiate replica set (only on primary)
+  when: inventory_hostname == mongo_primary_host
+  community.mongodb.mongodb_shell:
+    login_host: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | default('127.0.0.1') }}"
+    login_port: "{{ mongo_port }}"
+    login_user: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_user, omit) }}"
+    login_password: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_pass, omit) }}"
+    db: admin
+    eval: |
+      try {
+        rs.status();
+      } catch (e) {
+        var members = [
+        {% for h in groups[mongo_replica_inventory_group] %}
+          { _id: {{ loop.index0 }}, host: "{{ hostvars[h].inventory_hostname }}:{{ mongo_port }}" }{{ ',' if not loop.last else '' }}
+        {% endfor %}
+        ];
+        rs.initiate({ _id: "{{ mongo_replset_name }}", members: members });
+      }
+  register: rs_init
+  failed_when: false
+
+- name: Reconfigure replica set if membership changed (primary)
+  when: inventory_hostname == mongo_primary_host
+  community.mongodb.mongodb_shell:
+    login_host: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | default('127.0.0.1') }}"
+    login_port: "{{ mongo_port }}"
+    login_user: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_user, omit) }}"
+    login_password: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_pass, omit) }}"
+    db: admin
+    eval: |
+      var cfg = rs.conf();
+      var desired = [
+      {% for h in groups[mongo_replica_inventory_group] %}
+        { _id: {{ loop.index0 }}, host: "{{ hostvars[h].inventory_hostname }}:{{ mongo_port }}" }{{ ',' if not loop.last else '' }}
+      {% endfor %}
+      ];
+      var changed = JSON.stringify(cfg.members.map(m=>({ _id: m._id, host: m.host }))) !== JSON.stringify(desired);
+      if (changed) {
+        cfg.members = desired;
+        rs.reconfig(cfg, {force: true});
+      }
+  register: rs_reconfig
+  failed_when: false
+
+- name: Add arbiter if defined (primary)
+  when: inventory_hostname == mongo_primary_host and (mongo_arbiter_host | length > 0)
+  community.mongodb.mongodb_shell:
+    login_host: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | default('127.0.0.1') }}"
+    login_port: "{{ mongo_port }}"
+    login_user: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_user, omit) }}"
+    login_password: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_pass, omit) }}"
+    db: admin
+    eval: |
+      try { rs.addArb("{{ mongo_arbiter_host }}:{{ mongo_port }}"); } catch(e) { print(e); }
+  failed_when: false
+
+- name: Wait a bit after reconfig/init
+  when: inventory_hostname == mongo_primary_host
+  ansible.builtin.wait_for:
+    timeout: 10
+
+- name: Assert replicaset has PRIMARY & SECONDARY
+  when: inventory_hostname == mongo_primary_host
+  community.mongodb.mongodb_shell:
+    login_host: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] | default('127.0.0.1') }}"
+    login_port: "{{ mongo_port }}"
+    login_user: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_user, omit) }}"
+    login_password: "{{ (mongo_enable_auth | bool) | ternary(mongo_admin_pass, omit) }}"
+    db: admin
+    eval: |
+      var s = rs.status();
+      var states = s.members.map(m=>m.stateStr);
+      printjson(states);
+  register: rs_status_out
+  failed_when: false

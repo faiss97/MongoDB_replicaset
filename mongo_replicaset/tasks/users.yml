@@ -1,0 +1,23 @@
+---
+- name: Create admin user (root)
+  community.mongodb.mongodb_user:
+    login_host: 127.0.0.1
+    login_port: "{{ mongo_port }}"
+    database: admin
+    name: "{{ mongo_admin_user }}"
+    password: "{{ mongo_admin_pass }}"
+    roles:
+      - root
+    state: present
+    update_password: on_create
+
+- name: Create monitoring user
+  community.mongodb.mongodb_user:
+    login_host: 127.0.0.1
+    login_port: "{{ mongo_port }}"
+    database: admin
+    name: "{{ mongo_monitor_user }}"
+    password: "{{ mongo_monitor_pass }}"
+    roles: "{{ mongo_monitor_roles }}"
+    state: present
+    update_password: on_create

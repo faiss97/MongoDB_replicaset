@@ -1,0 +1,28 @@
+---
+- name: Open port with ufw (Debian/Ubuntu) if present
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Check ufw
+      ansible.builtin.stat:
+        path: /usr/sbin/ufw
+      register: ufw_bin
+    - name: Allow MongoDB via ufw
+      when: ufw_bin.stat.exists
+      community.general.ufw:
+        rule: allow
+        port: "{{ mongo_port }}"
+        proto: tcp
+
+- name: Open port with firewalld (RHEL-like) if present
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Check firewalld
+      ansible.builtin.service_facts:
+    - name: Allow MongoDB via firewalld
+      when: (ansible_facts.services|default({})).get('firewalld.service', {}).state == 'running'
+      ansible.posix.firewalld:
+        port: "{{ mongo_port }}/tcp"
+        permanent: yes
+        immediate: yes
+        state: enabled
+        zone: public

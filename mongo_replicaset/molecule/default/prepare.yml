@@ -1,0 +1,8 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Install base packages
+      ansible.builtin.package:
+        name: [python3, sudo, iproute2]
+        state: present

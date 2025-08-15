@@ -1,0 +1,59 @@
+---
+# Version majeure de MongoDB (utilisée pour les dépôts)
+mongo_major: "7.0"
+
+# Version précise des paquets. Laisser vide pour latest du dépôt.
+# Exemple: "7.0.12" => pin des paquets 7.0.12
+mongo_version: ""
+
+# Nom du replica set
+mongo_replset_name: "rs0"
+
+# Répertoire des données
+mongo_dbpath: "/var/lib/mongo"
+
+# Adresse(s) d’écoute
+mongo_bind_ip: ["0.0.0.0"]
+
+# Port MongoDB
+mongo_port: 27017
+
+# Authentification & sécurité
+mongo_enable_auth: true
+mongo_keyfile_path: "/etc/mongo-keyfile"
+# mongo_keyfile_content: ""
+mongo_enable_tls: false
+mongo_tls_cert_file: ""
+mongo_tls_key_file: ""
+mongo_auth_mechanisms: ["SCRAM-SHA-256"]
+
+# Comptes
+mongo_admin_user: "admin"
+mongo_admin_pass: ""   # à stocker via Ansible Vault en prod
+mongo_monitor_user: "monitor"
+mongo_monitor_pass: ""  # à stocker via Ansible Vault en prod
+mongo_monitor_roles: ["clusterMonitor", "readAnyDatabase"]
+
+# Groupe d’inventaire contenant les nœuds MongoDB
+mongo_replica_inventory_group: "mongodb"
+
+# Optionnel : hôte arbitre (FQDN ou nom d’inventaire). Laisser vide si non utilisé.
+mongo_arbiter_host: ""
+
+# Limites système (ulimits)
+mongo_nofile_limit: 64000
+
+# Contrôle du firewall (ufw/firewalld si présent)
+manage_firewall: true
+
+# Drapeaux divers
+mongo_config_owner: "mongodb"
+mongo_config_group: "mongodb"
+
+# Délai d’attente après démarrage (pour l’init/connexion)
+mongo_startup_wait: 15
+
+# Rolling upgrade (sans coupure)
+mongo_rolling_upgrade: false
+mongo_target_version: ""     # ex: "7.0.12" ; si vide => latest
+mongo_set_fcv_after_upgrade: false  # true => tentative de set FCV (doit être lancé sur le PRIMARY)
